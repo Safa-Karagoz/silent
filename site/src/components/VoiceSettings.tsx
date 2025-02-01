@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Volume2, VolumeX, X } from 'lucide-react';
+import { Mic, Volume2, VolumeX, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import MediaUploader from './MediaUploader';
 
 interface Voice {
@@ -23,7 +23,7 @@ interface VoicePreviewCardProps {
   onPlayToggle: () => void;
 }
 
-// Modal Component
+// Modal Component remains the same
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
 
@@ -46,7 +46,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
   );
 };
 
-// Voice Preview Card Component
+// Voice Preview Card Component remains the same
 const VoicePreviewCard: React.FC<VoicePreviewCardProps> = ({ 
   voice, 
   isSelected, 
@@ -61,7 +61,7 @@ const VoicePreviewCard: React.FC<VoicePreviewCardProps> = ({
         p-4 rounded-lg cursor-pointer transition-all duration-200
         ${isSelected 
           ? 'bg-[hsl(33,70%,63%,0.1)] border-2 border-[hsl(33,70%,63%)]' 
-          : 'bg-white border-2 border-transparent hover:border-[hsl(73,17%,74%)]'}
+          : 'bg-primary border-2 border-transparent hover:border-[hsl(73,17%,74%)]'}
       `}
     >
       <div className="flex justify-between items-center">
@@ -88,50 +88,84 @@ const VoicePreviewCard: React.FC<VoicePreviewCardProps> = ({
 
 const VoiceSettings: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [selectedVoice, setSelectedVoice] = useState<Voice | undefined>(undefined);
+  const [voices, setVoices] = useState<Voice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<Voice | null>(null);
   const [isPlaying, setIsPlaying] = useState<string>('');
   const [customVoiceId, setCustomVoiceId] = useState<string>('');
   const [showRecorder, setShowRecorder] = useState<boolean>(false);
-  const [voices, setVoices] = useState<Voice[]>([]);
+
+  // TODO --> Save voice to db for this user (voice selected)   
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+
+  const VOICES_PER_PAGE = 4;
 
   useEffect(() => {
     const fetchVoices = async () => {
       try {
+        setIsLoading(true);
         const response = await fetch('/api/elevenlabs/fetch-available-voices');
-        console.log("response: ", response);
+        
         if (!response.ok) {
-          console.log("repsonse wasn't okay?")
-          throw new Error('Failed to fetch voices');
-        }
-        const availableVoiceResponse = await response.json();
-
-        const formattedVoices = availableVoiceResponse.map((voice: any) => ({
-          id: voice.voice_id,
-          name: voice.name,
-          preview_url: voice.preview_url,
-          gender: voice.labels.gender
-        }));
-
-        setVoices(formattedVoices);
-
-        // Set the first voice as the selected voice if we have voices and no voice is currently selected
-        if (formattedVoices.length > 0 && !selectedVoice) {
-          setSelectedVoice(formattedVoices[0]);
+          throw new Error(`Failed to fetch voices: ${response.status}`);
         }
         
-        console.log("Available voices: ", formattedVoices);
-      } catch (error) {
-        console.error('Error fetching voices:', error);
+        const data = await response.json();
+        
+        // Log the response to help debug
+        console.log('API Response:', data);
+        
+        // Handle different possible response structures
+        const voicesArray = data?.voices || data?.data?.voices || data;
+        
+        if (!voicesArray || !Array.isArray(voicesArray)) {
+          console.error('Unexpected API response structure:', data);
+          throw new Error('Invalid API response format');
+        }
+        
+        const formattedVoices: Voice[] = voicesArray.map((voice: any) => {
+          // Validate required fields
+          if (!voice?.voice_id || !voice?.name) {
+            console.warn('Voice missing required fields:', voice);
+          }
+          
+          return {
+            id: voice?.voice_id || `invalid-${Math.random()}`,
+            name: voice?.name || 'Unnamed Voice',
+            gender: ((voice?.labels?.gender?.toLowerCase() || 'unknown') as 'male' | 'female'),
+            preview_url: voice?.preview_url || ''
+          };
+        });
+        
+        if (formattedVoices.length === 0) {
+          throw new Error('No valid voices found in response');
+        }
+        
+        setVoices(formattedVoices);
+        
+        // Only set selected voice if none is currently selected
+        if (!selectedVoice && formattedVoices.length > 0) {
+          setSelectedVoice(formattedVoices[0]);
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load voices';
+        setError(`Error: ${errorMessage}. Please try again later.`);
+        console.error('Error fetching voices:', err);
       } finally {
         setIsLoading(false);
       }
     };
-
+  
     fetchVoices();
-  }, []);
+  }, [selectedVoice]);
+  
+  const totalPages = Math.ceil(voices.length / VOICES_PER_PAGE);
+  const paginatedVoices = voices.slice(
+    (currentPage - 1) * VOICES_PER_PAGE,
+    currentPage * VOICES_PER_PAGE
+  );
 
-  // TODO --> Save voice to db for this user (voice selected) 
   const handleVoiceSelect = (voice: Voice): void => {
     setSelectedVoice(voice);
   };
@@ -163,7 +197,7 @@ const VoiceSettings: React.FC = () => {
   const CurrentVoiceDisplay: React.FC = () => (
     <div 
       onClick={() => setIsModalOpen(true)}
-      className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+      className="bg-white rounded-lg shadow-md hover:shadow-sm transition-shadow duration-200 cursor-pointer bg-[hsl(33,70%,63%,0.1)]"
     >
       <div className="p-6 border-2 border-transparent hover:border-[hsl(33,70%,63%)] rounded-lg transition-colors">
         <div className="flex items-center gap-4">
@@ -200,22 +234,47 @@ const VoiceSettings: React.FC = () => {
 
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-[hsl(240,36%,4%)] mb-4">Default Voices</h3>
+              <h3 className="text-lg font-medium text-[hsl(240,36%,4%)] mb-4">Available Voices</h3>
               {isLoading ? (
-                <p className="text-[hsl(240,36%,4%)]">Loading voices...</p>
+                <div className="text-center py-8">Loading voices...</div>
+              ) : error ? (
+                <div className="text-center py-8 text-red-500">{error}</div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {voices.map((voice) => (
-                    <VoicePreviewCard 
-                      key={voice.id}
-                      voice={voice}
-                      isSelected={selectedVoice?.id === voice.id}
-                      onSelect={() => handleVoiceSelect(voice)}
-                      isPlaying={isPlaying === voice.id}
-                      onPlayToggle={() => handlePlayPreview(voice.id, voice.preview_url)}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {paginatedVoices.map((voice) => (
+                      <VoicePreviewCard 
+                        key={voice.id}
+                        voice={voice}
+                        isSelected={selectedVoice?.id === voice.id}
+                        onSelect={() => handleVoiceSelect(voice)}
+                        isPlaying={isPlaying === voice.id}
+                        onPlayToggle={() => handlePlayPreview(voice.id, voice.preview_url)}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Pagination Controls */}
+                  <div className="flex justify-center items-center space-x-4 mt-6">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-full hover:bg-[hsl(73,17%,74%,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <span className="text-sm">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-full hover:bg-[hsl(73,17%,74%,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </div>
+                </>
               )}
             </div>
 
