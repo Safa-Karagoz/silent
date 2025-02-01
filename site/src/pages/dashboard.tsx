@@ -8,7 +8,42 @@ import Head from 'next/head';
 
 const Dashboard = () => {
     const { data: session } = useSession();
-    
+
+    const [voices, setVoices] = React.useState<any[]>([]);
+
+    const fetchVoices = async () => {
+        try {
+            const res = await fetch("/api/elevenlabs/fetch-available-voices");
+            if (!res.ok) {
+                throw new Error("Failed to fetch voices");
+            }
+            const data = await res.json();
+            console.log("Data: ", data);
+            setVoices(data.voices || data);
+        } catch (error) {
+            console.error("Error fetching voices:", error);
+        }
+    };
+
+    const voicesSection = (
+        <div className="mt-4">
+            <button
+                onClick={fetchVoices}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 transition-colors"
+                aria-label="Fetch Voices"
+            >
+                <span>Fetch Voices</span>
+            </button>
+            {voices.length > 0 && (
+                <ul className="mt-2">
+                    {voices.map((voice: any) => (
+                        <li key={voice.id}>{voice.name}</li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+
     return (
         <>
         <Head>
@@ -24,6 +59,7 @@ const Dashboard = () => {
                     <span>Sign out</span>
                 </button>
             </div>
+            { voicesSection }
         </div>
         </>
     );
