@@ -158,7 +158,7 @@ const VoiceSettings: React.FC = () => {
     };
   
     fetchVoices();
-  }, [selectedVoice]);
+  }, []);
   
   const totalPages = Math.ceil(voices.length / VOICES_PER_PAGE);
   const paginatedVoices = voices.slice(
