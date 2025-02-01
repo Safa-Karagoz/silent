@@ -14,7 +14,11 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "^0.173.0",
-    "typewriter-effect": "^2.21.0"
+    "typewriter-effect": "^2.21.0",
+    "@auth/mongodb-adapter": "^3.7.4",
+    "lucide-react": "^0.474.0",
+    "mongodb": "^6.13.0",
+    "next-auth": "^4.24.11"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
