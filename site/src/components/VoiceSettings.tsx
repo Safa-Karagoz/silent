@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Volume2, VolumeX, X } from 'lucide-react';
+import { Mic, Volume2, VolumeX, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import AudioRecorder from './AudioRecorder';
 
 interface Voice {
@@ -23,7 +23,7 @@ interface VoicePreviewCardProps {
   onPlayToggle: () => void;
 }
 
-// Modal Component
+// Modal Component remains the same
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
 
@@ -46,7 +46,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
   );
 };
 
-// Voice Preview Card Component
+// Voice Preview Card Component remains the same
 const VoicePreviewCard: React.FC<VoicePreviewCardProps> = ({ 
   voice, 
   isSelected, 
@@ -86,20 +86,57 @@ const VoicePreviewCard: React.FC<VoicePreviewCardProps> = ({
   );
 };
 
-// Default voice options
-const DEFAULT_VOICES: Voice[] = [
-  { id: 'default-1', name: 'Adam', gender: 'male', preview_url: '/previews/adam.mp3' },
-  { id: 'default-2', name: 'Sarah', gender: 'female', preview_url: '/previews/sarah.mp3' },
-  { id: 'default-3', name: 'Michael', gender: 'male', preview_url: '/previews/michael.mp3' },
-  { id: 'default-4', name: 'Emma', gender: 'female', preview_url: '/previews/emma.mp3' },
-];
-
 const VoiceSettings: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [selectedVoice, setSelectedVoice] = useState<Voice>(DEFAULT_VOICES[0]);
+  const [voices, setVoices] = useState<Voice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<Voice | null>(null);
   const [isPlaying, setIsPlaying] = useState<string>('');
   const [customVoiceId, setCustomVoiceId] = useState<string>('');
   const [showRecorder, setShowRecorder] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+
+  const VOICES_PER_PAGE = 4;
+
+  useEffect(() => {
+    const fetchVoices = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/elevenlabs/fetch-available-voices');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch voices');
+        }
+        
+        const data = await response.json();
+        const formattedVoices: Voice[] = data.voices.map((voice: any) => ({
+          id: voice.voice_id,
+          name: voice.name,
+          gender: voice.labels?.gender?.toLowerCase() || 'unknown',
+          preview_url: voice.preview_url
+        }));
+        
+        setVoices(formattedVoices);
+        if (!selectedVoice && formattedVoices.length > 0) {
+          setSelectedVoice(formattedVoices[0]);
+        }
+      } catch (err) {
+        setError('Failed to load voices. Please try again later.');
+        console.error('Error fetching voices:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchVoices();
+  }, []);
+
+  const totalPages = Math.ceil(voices.length / VOICES_PER_PAGE);
+  const paginatedVoices = voices.slice(
+    (currentPage - 1) * VOICES_PER_PAGE,
+    currentPage * VOICES_PER_PAGE
+  );
 
   const handleVoiceSelect = (voice: Voice): void => {
     setSelectedVoice(voice);
@@ -143,7 +180,7 @@ const VoiceSettings: React.FC = () => {
           <div>
             <h3 className="text-lg font-bold text-[hsl(240,36%,4%)]">Voice Model</h3>
             <p className="text-[hsla(240,31%,12%,1)]">
-              Currently using: <span className="font-medium">{selectedVoice.name}</span>
+              Currently using: <span className="font-medium">{selectedVoice?.name || 'Loading...'}</span>
             </p>
           </div>
         </div>
@@ -170,19 +207,48 @@ const VoiceSettings: React.FC = () => {
 
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-[hsl(240,36%,4%)] mb-4">Default Voices</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {DEFAULT_VOICES.map((voice) => (
-                  <VoicePreviewCard 
-                    key={voice.id}
-                    voice={voice}
-                    isSelected={selectedVoice.id === voice.id}
-                    onSelect={() => handleVoiceSelect(voice)}
-                    isPlaying={isPlaying === voice.id}
-                    onPlayToggle={() => handlePlayPreview(voice.id, voice.preview_url)}
-                  />
-                ))}
-              </div>
+              <h3 className="text-lg font-medium text-[hsl(240,36%,4%)] mb-4">Available Voices</h3>
+              {isLoading ? (
+                <div className="text-center py-8">Loading voices...</div>
+              ) : error ? (
+                <div className="text-center py-8 text-red-500">{error}</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {paginatedVoices.map((voice) => (
+                      <VoicePreviewCard 
+                        key={voice.id}
+                        voice={voice}
+                        isSelected={selectedVoice?.id === voice.id}
+                        onSelect={() => handleVoiceSelect(voice)}
+                        isPlaying={isPlaying === voice.id}
+                        onPlayToggle={() => handlePlayPreview(voice.id, voice.preview_url)}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Pagination Controls */}
+                  <div className="flex justify-center items-center space-x-4 mt-6">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="p-2 rounded-full hover:bg-[hsl(73,17%,74%,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <span className="text-sm">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-2 rounded-full hover:bg-[hsl(73,17%,74%,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
 
             <div>
