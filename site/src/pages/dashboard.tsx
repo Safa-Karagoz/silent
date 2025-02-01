@@ -6,6 +6,7 @@ import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 import VoiceSettings from '../components/VoiceSettings';
+import MediaUploader from '@/components/MediaUploader';
 
 const Dashboard = () => {
    const { data: session } = useSession();

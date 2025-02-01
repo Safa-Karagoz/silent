@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Mic, Volume2, VolumeX, X } from 'lucide-react';
-import AudioRecorder from './AudioRecorder';
+import MediaUploader from './MediaUploader';
 
 interface Voice {
   id: string;
@@ -86,24 +86,54 @@ const VoicePreviewCard: React.FC<VoicePreviewCardProps> = ({
   );
 };
 
-// Default voice options
-const DEFAULT_VOICES: Voice[] = [
-  { id: 'default-1', name: 'Adam', gender: 'male', preview_url: '/previews/adam.mp3' },
-  { id: 'default-2', name: 'Sarah', gender: 'female', preview_url: '/previews/sarah.mp3' },
-  { id: 'default-3', name: 'Michael', gender: 'male', preview_url: '/previews/michael.mp3' },
-  { id: 'default-4', name: 'Emma', gender: 'female', preview_url: '/previews/emma.mp3' },
-];
-
 const VoiceSettings: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [selectedVoice, setSelectedVoice] = useState<Voice>(DEFAULT_VOICES[0]);
+  const [selectedVoice, setSelectedVoice] = useState<Voice | undefined>(undefined);
   const [isPlaying, setIsPlaying] = useState<string>('');
   const [customVoiceId, setCustomVoiceId] = useState<string>('');
   const [showRecorder, setShowRecorder] = useState<boolean>(false);
+  const [voices, setVoices] = useState<Voice[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  useEffect(() => {
+    const fetchVoices = async () => {
+      try {
+        const response = await fetch('/api/elevenlabs/fetch-available-voices');
+        console.log("response: ", response);
+        if (!response.ok) {
+          console.log("repsonse wasn't okay?")
+          throw new Error('Failed to fetch voices');
+        }
+        const availableVoiceResponse = await response.json();
+
+        const formattedVoices = availableVoiceResponse.map((voice: any) => ({
+          id: voice.voice_id,
+          name: voice.name,
+          preview_url: voice.preview_url,
+          gender: voice.labels.gender
+        }));
+
+        setVoices(formattedVoices);
+
+        // Set the first voice as the selected voice if we have voices and no voice is currently selected
+        if (formattedVoices.length > 0 && !selectedVoice) {
+          setSelectedVoice(formattedVoices[0]);
+        }
+        
+        console.log("Available voices: ", formattedVoices);
+      } catch (error) {
+        console.error('Error fetching voices:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchVoices();
+  }, []);
+
+  // TODO --> Save voice to db for this user (voice selected) 
   const handleVoiceSelect = (voice: Voice): void => {
     setSelectedVoice(voice);
-    // Here you would save this preference to your backend
   };
 
   const handlePlayPreview = (voiceId: string, previewUrl: string): void => {
@@ -143,7 +173,7 @@ const VoiceSettings: React.FC = () => {
           <div>
             <h3 className="text-lg font-medium text-[hsl(240,36%,4%)]">Voice Model</h3>
             <p className="text-[hsl(240,36%,4%,0.7)]">
-              Currently using: <span className="font-medium">{selectedVoice.name}</span>
+              Currently using: <span className="font-medium">{selectedVoice?.name ?? "Loading..."}</span>
             </p>
           </div>
         </div>
@@ -171,18 +201,22 @@ const VoiceSettings: React.FC = () => {
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-medium text-[hsl(240,36%,4%)] mb-4">Default Voices</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {DEFAULT_VOICES.map((voice) => (
-                  <VoicePreviewCard 
-                    key={voice.id}
-                    voice={voice}
-                    isSelected={selectedVoice.id === voice.id}
-                    onSelect={() => handleVoiceSelect(voice)}
-                    isPlaying={isPlaying === voice.id}
-                    onPlayToggle={() => handlePlayPreview(voice.id, voice.preview_url)}
-                  />
-                ))}
-              </div>
+              {isLoading ? (
+                <p className="text-[hsl(240,36%,4%)]">Loading voices...</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {voices.map((voice) => (
+                    <VoicePreviewCard 
+                      key={voice.id}
+                      voice={voice}
+                      isSelected={selectedVoice?.id === voice.id}
+                      onSelect={() => handleVoiceSelect(voice)}
+                      isPlaying={isPlaying === voice.id}
+                      onPlayToggle={() => handlePlayPreview(voice.id, voice.preview_url)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             <div>
@@ -203,12 +237,12 @@ const VoiceSettings: React.FC = () => {
                   </div>
                 </div>
               ) : showRecorder ? (
-                <AudioRecorder setVoiceId={handleCustomVoiceCreated} />
+                <MediaUploader setVoiceId={handleCustomVoiceCreated} />
               ) : (
                 <button
                   onClick={() => setShowRecorder(true)}
                   className="w-full p-6 border-2 border-dashed border-[hsl(73,17%,74%)] rounded-lg 
-                           hover:border-[hsl(33,70%,63%)] hover:bg-[hsl(33,70%,63%,0.05)] transition-all duration-200"
+                          hover:border-[hsl(33,70%,63%)] hover:bg-[hsl(33,70%,63%,0.05)] transition-all duration-200"
                 >
                   <Mic className="mx-auto h-6 w-6 mb-2 text-[hsl(33,70%,63%)]" />
                   <p className="text-[hsl(240,36%,4%)]">Create Custom Voice</p>
