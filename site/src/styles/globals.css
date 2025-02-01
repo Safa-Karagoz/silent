@@ -7,7 +7,7 @@
 :root {
   --text: hsl(240, 36, 4); 
   --background: hsl(240, 60, 99);
-  --primary: hsl(33, 70, 63); 
+  --primary: hsl(33, 63%, 59%); 
   --secondary: hsl(73, 17, 74);
   --accent: hsl(135, 17, 63);
 }

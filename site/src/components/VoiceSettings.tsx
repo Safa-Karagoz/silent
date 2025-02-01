@@ -60,14 +60,14 @@ const VoicePreviewCard: React.FC<VoicePreviewCardProps> = ({
       className={`
         p-4 rounded-lg cursor-pointer transition-all duration-200
         ${isSelected 
-          ? 'bg-[hsl(33,70%,63%,0.1)] border-2 border-[hsl(33,70%,63%)]' 
-          : 'bg-primary border-2 border-transparent hover:border-[hsl(73,17%,74%)]'}
+          ? 'bg-[hsl(33,70%,63%,0.1)] border-2 border-primary' 
+          : 'bg-background border-2 border-transparent hover:border-primary'}
       `}
     >
       <div className="flex justify-between items-center">
         <div>
-          <h4 className="font-medium text-[hsl(240,36%,4%)]">{voice.name}</h4>
-          <p className="text-sm text-[hsl(240,36%,4%,0.7)] capitalize">{voice.gender}</p>
+          <h4 className="font-medium text-text">{voice.name}</h4>
+          <p className="text-sm text-text capitalize">{voice.gender}</p>
         </div>
         <button
           onClick={(e: React.MouseEvent) => {
@@ -77,8 +77,8 @@ const VoicePreviewCard: React.FC<VoicePreviewCardProps> = ({
           className="p-2 hover:bg-[hsl(73,17%,74%,0.2)] rounded-full transition-colors"
         >
           {isPlaying 
-            ? <VolumeX className="h-5 w-5 text-[hsl(240,36%,4%)]" /> 
-            : <Volume2 className="h-5 w-5 text-[hsl(240,36%,4%)]" />
+            ? <VolumeX className="h-5 w-5 text-text" /> 
+            : <Volume2 className="h-5 w-5 " />
           }
         </button>
       </div>
@@ -229,7 +229,7 @@ const VoiceSettings: React.FC = () => {
         <div className="space-y-8">
           <div>
             <h2 className="text-2xl font-semibold text-[hsl(240,36%,4%)] mb-1">Voice Settings</h2>
-            <p className="text-[hsl(240,36%,4%,0.7)]">Choose a voice model or create your own</p>
+            <p className="text-text">Choose a voice model or create your own</p>
           </div>
 
           <div className="space-y-6">
