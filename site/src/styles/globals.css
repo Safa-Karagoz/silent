@@ -1,21 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Rethink+Sans:ital,wght@0,400..800;1,400..800&family=Urbanist:ital,wght@0,100..900;1,100..900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --text: hsl(240, 36, 4); 
+  --background: hsl(240, 60, 99);
+  --primary: hsl(33, 70, 63); 
+  --secondary: hsl(73, 17, 74);
+  --accent: hsl(135, 17, 63);
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
+  /* background: hsl(120, 3%, 7%); */
   font-family: Arial, Helvetica, sans-serif;
 }
