@@ -61,7 +61,7 @@ const VoicePreviewCard: React.FC<VoicePreviewCardProps> = ({
         p-4 rounded-lg cursor-pointer transition-all duration-200
         ${isSelected 
           ? 'bg-[hsl(33,70%,63%,0.1)] border-2 border-[hsl(33,70%,63%)]' 
-          : 'bg-white border-2 border-transparent hover:border-[hsl(73,17%,74%)]'}
+          : 'bg-primary border-2 border-transparent hover:border-[hsl(73,17%,74%)]'}
       `}
     >
       <div className="flex justify-between items-center">
@@ -133,7 +133,7 @@ const VoiceSettings: React.FC = () => {
   const CurrentVoiceDisplay: React.FC = () => (
     <div 
       onClick={() => setIsModalOpen(true)}
-      className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+      className="bg-white rounded-lg shadow-md hover:shadow-sm transition-shadow duration-200 cursor-pointer bg-[hsl(33,70%,63%,0.1)]"
     >
       <div className="p-6 border-2 border-transparent hover:border-[hsl(33,70%,63%)] rounded-lg transition-colors">
         <div className="flex items-center gap-4">
@@ -141,8 +141,8 @@ const VoiceSettings: React.FC = () => {
             <Mic className="h-6 w-6 text-[hsl(33,70%,63%)]" />
           </div>
           <div>
-            <h3 className="text-lg font-medium text-[hsl(240,36%,4%)]">Voice Model</h3>
-            <p className="text-[hsl(240,36%,4%,0.7)]">
+            <h3 className="text-lg font-bold text-[hsl(240,36%,4%)]">Voice Model</h3>
+            <p className="text-[hsla(240,31%,12%,1)]">
               Currently using: <span className="font-medium">{selectedVoice.name}</span>
             </p>
           </div>
