@@ -47,9 +47,9 @@ const VideoFeed: React.FC = () => {
         },
         audio: false
       });
-      
+
       streamRef.current = stream;
-      
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
@@ -141,18 +141,18 @@ const VideoFeed: React.FC = () => {
   };
 
   return (
-    <div className="bg-slate-50 shadow-lg h-full flex flex-col border-2 border-orange-300 rounded-lg p-2">
-      <div className="relative flex-1 w-full bg-gray-100">
+    <div className="relative h-full">
+      <div className="h-full bg-gray-100 rounded-lg overflow-hidden">
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center">
             <RefreshCw className="w-8 h-8 text-orange-300 animate-spin" />
           </div>
         )}
-        
+
         {error ? (
           <div className="absolute inset-0 flex items-center justify-center text-red-500 p-4 text-center">
             {error}
-            <button 
+            <button
               onClick={startCamera}
               className="ml-2 text-orange-300 hover:underline"
             >
@@ -164,24 +164,27 @@ const VideoFeed: React.FC = () => {
             ref={videoRef}
             autoPlay
             playsInline
-            className="w-full h-full object-cover rounded-lg transform scale-x-[-1]"
+            className="w-full h-full object-cover transform scale-x-[-1]"
           />
         )}
-      </div>
-      
-      <div className="mt-4 flex justify-center">
-        <button
-          onClick={toggleCapture}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-            isCapturing 
-              ? 'bg-red-500 hover:bg-red-600 text-white'
-              : 'bg-orange-300 hover:bg-orange-400 text-white'
-          }`}
-          disabled={!!error || isLoading}
-        >
-          <Video className="w-5 h-5" />
-          {isCapturing ? 'Stop Recording' : 'Start Recording'}
-        </button>
+
+        {/* Overlay recording control */}
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+          <button
+            onClick={toggleCapture}
+            className={`flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all duration-200 ${isCapturing
+                ? 'bg-primary scale-110 animate-pulse pulse'
+                : 'bg-white/90'
+              }`}
+            disabled={!!error || isLoading}
+            title={isCapturing ? 'Stop Recording' : 'Start Recording'}
+          >
+            <div className={`${isCapturing
+                ? 'w-4 h-4 rounded-sm bg-white'
+                : 'w-4 h-4 bg-primary rounded-full'
+              }`} />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -8,7 +8,6 @@ import { LogOut } from "lucide-react";
 import VoiceSettings from "../components/VoiceSettings";
 import VideoFeed from "../components/Video";
 import TranscriptView from "../components/Transcript";
-import TranscribeButton from "@/components/TranscribeButton";
 
 const Dashboard = () => {
   const { data: session } = useSession();
@@ -46,10 +45,6 @@ const Dashboard = () => {
             </h1>
 
             <div className="flex flex-row gap-5">
-              {/* Transcribe Audio Button */}
-              <div onClick={() => {}}>
-                <TranscribeButton />
-              </div>
               <button
                 onClick={handleSignOut}
                 className="flex items-center gap-2 px-4 py-2 text-[hsl(240,36%,4%)] hover:text-[hsl(33,70%,63%)]
