@@ -194,7 +194,7 @@ export default function LandingPage() {
 
       {/* Waveform at bottom */}
       <div className="w-screen overflow-hidden">
-        <div className="w-full h-48 -translate-x-3 -translate-y-5">
+        <div className="w-full h-48 -translate-x-3 translate-y-6">
           <AnimatedWaveform />
         </div>
       </div>
