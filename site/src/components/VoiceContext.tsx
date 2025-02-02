@@ -12,6 +12,17 @@ interface VoiceContextType {
 
 const VoiceContext = createContext<VoiceContextType | undefined>(undefined);
 
+const shouldFilterText = (text: string): boolean => {
+  const lowerText = text.toLowerCase();
+  
+  // Filter conditions
+  const containsIDontKnow = lowerText.includes("i don't know") || lowerText.includes("i dont know");
+  const containsError = lowerText.includes("error") || lowerText.includes("processing timed out");
+  
+  // Return true if the text should be filtered out
+  return containsIDontKnow || containsError;
+};
+
 export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { data: session } = useSession();
   const [currentVoiceName, setCurrentVoiceName] = useState<string>(session?.user?.voiceName || 'Sarah');
@@ -31,7 +42,10 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addTranscription = (text: string) => {
-    setTranscriptionQueue(prev => [...prev, text]);
+    // Only add the transcription if it passes the filter
+    if (!shouldFilterText(text)) {
+      setTranscriptionQueue(prev => [...prev, text]);
+    }
   };
 
   const clearProcessedTranscription = () => {
