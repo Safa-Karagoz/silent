@@ -1,1 +1,8 @@
 .DS_Store
+model/benchmarks/LRS3/labels/test.ref
+model/benchmarks/LRS3/language_models/README.md
+model/benchmarks/LRS3/language_models/lm_en_subword/model.json
+model/benchmarks/LRS3/language_models/lm_en_subword/model.pth
+model/benchmarks/LRS3/models/README.md
+model/benchmarks/LRS3/models/LRS3_V_WER19.1/model.json
+model/benchmarks/LRS3/models/LRS3_V_WER19.1/model.pth
