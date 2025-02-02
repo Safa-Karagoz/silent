@@ -71,7 +71,7 @@ export default async function handler(
     await Promise.all(
       audioFiles.map((file: { filepath: fs.PathLike }) => fs.promises.unlink(file.filepath))
     )
-
+    console.log('Voice upload processed:', data)
     return res.status(200).json(data)
 
   } catch (error) {

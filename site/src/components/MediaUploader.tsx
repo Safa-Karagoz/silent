@@ -3,6 +3,7 @@ import { FileUp, Trash, Upload, Loader } from 'lucide-react';
 
 interface MediaUploaderProps {
   setVoiceId: (voiceId: string) => void;
+  onUploadSuccess: (voiceId: string) => void;
 }
 
 interface MediaFile {
@@ -11,14 +12,14 @@ interface MediaFile {
   duration: number;
 }
 
-const MediaUploader : React.FC<MediaUploaderProps> = ({ setVoiceId }) => {
+const MediaUploader: React.FC<MediaUploaderProps> = ({ setVoiceId, onUploadSuccess }) => {
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [totalDuration, setTotalDuration] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const MINIMUM_TOTAL_DURATION = 10; // Minimum total duration in seconds
-  const MAXIMUM_FILE_SIZE = 25 * 1024 * 1024; // 25MB in bytes
+  const MINIMUM_TOTAL_DURATION = 10;
+  const MAXIMUM_FILE_SIZE = 25 * 1024 * 1024;
   const ALLOWED_TYPES = [
     'audio/wav',
     'audio/mpeg',
@@ -38,17 +39,14 @@ const MediaUploader : React.FC<MediaUploaderProps> = ({ setVoiceId }) => {
         : document.createElement('audio');
       
       element.preload = 'metadata';
-      
       element.onloadedmetadata = () => {
         window.URL.revokeObjectURL(element.src);
         resolve(element.duration);
       };
-
       element.onerror = () => {
         window.URL.revokeObjectURL(element.src);
         reject(new Error('Error loading media file'));
       };
-
       element.src = URL.createObjectURL(file);
     });
   };
@@ -57,15 +55,11 @@ const MediaUploader : React.FC<MediaUploaderProps> = ({ setVoiceId }) => {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
 
-    // Validate files
     for (const file of files) {
-      // Check file type
       if (!ALLOWED_TYPES.includes(file.type)) {
         alert(`File type ${file.type} is not supported. Please upload audio or video files.`);
         return;
       }
-
-      // Check file size
       if (file.size > MAXIMUM_FILE_SIZE) {
         alert(`File ${file.name} is too large. Maximum size is 25MB.`);
         return;
@@ -74,7 +68,6 @@ const MediaUploader : React.FC<MediaUploaderProps> = ({ setVoiceId }) => {
 
     try {
       const newFiles: MediaFile[] = [];
-      
       for (const file of files) {
         const duration = await getMediaDuration(file);
         const url = URL.createObjectURL(file);
@@ -82,7 +75,7 @@ const MediaUploader : React.FC<MediaUploaderProps> = ({ setVoiceId }) => {
       }
 
       setMediaFiles(prev => {
-        const updated = [...prev, ...newFiles].slice(0, 2); // Keep maximum 2 files
+        const updated = [...prev, ...newFiles].slice(0, 2);
         const total = updated.reduce((sum, file) => sum + file.duration, 0);
         setTotalDuration(total);
         return updated;
@@ -92,7 +85,6 @@ const MediaUploader : React.FC<MediaUploaderProps> = ({ setVoiceId }) => {
       alert('Error processing media file. Please try another file.');
     }
 
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -116,7 +108,6 @@ const MediaUploader : React.FC<MediaUploaderProps> = ({ setVoiceId }) => {
 
     setIsUploading(true);
     const form = new FormData();
-
     mediaFiles.forEach(({ file }, index) => {
       form.append('files', file);
     });
@@ -132,12 +123,23 @@ const MediaUploader : React.FC<MediaUploaderProps> = ({ setVoiceId }) => {
       }
 
       const data = await response.json();
-      console.log('Upload successful:', data);
+      const voiceId = data.voice_id;
       
+      // Save custom voice ID to database
+      const dbResponse = await fetch('/api/user/voice-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customVoiceId: voiceId })
+      });
+
+      if (!dbResponse.ok) {
+        throw new Error('Failed to save custom voice to database');
+      }
+
       mediaFiles.forEach(file => URL.revokeObjectURL(file.url));
       setMediaFiles([]);
       setTotalDuration(0);
-      setVoiceId(data.voice_id);
+      onUploadSuccess(voiceId);
 
       alert('Media files uploaded successfully!');
     } catch (err) {
@@ -151,13 +153,13 @@ const MediaUploader : React.FC<MediaUploaderProps> = ({ setVoiceId }) => {
   return (
     <div className="w-full rounded-lg">
       <div className="mb-6">
-        <p className="text-sm text-text">
+        <p className="text-sm text-[hsl(240,36%,4%)]">
           Upload up to 2 audio or video files for voice cloning.
         </p>
-        <p className="text-sm text-text">
+        <p className="text-sm text-[hsl(240,36%,4%)]">
           Files should contain clear speech with minimal background noise.
         </p>
-        <p className="text-sm text-text mb-4">
+        <p className="text-sm text-[hsl(240,36%,4%)] mb-4">
           By uploading these files, you consent to the replication and use of the voice content for this product.
         </p>
         
@@ -175,7 +177,7 @@ const MediaUploader : React.FC<MediaUploaderProps> = ({ setVoiceId }) => {
             onClick={() => fileInputRef.current?.click()}
             disabled={mediaFiles.length >= 2 || isUploading}
             type="button"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border-secondary border hover:enabled:bg-primary hover:active:enabled:bg-secondary text-text disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border-[hsl(73,17%,74%)] border hover:enabled:bg-[hsl(33,70%,63%)] hover:active:enabled:bg-[hsl(73,17%,74%)] text-[hsl(240,36%,4%)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <FileUp size={16} />
             Select Files
@@ -184,7 +186,7 @@ const MediaUploader : React.FC<MediaUploaderProps> = ({ setVoiceId }) => {
 
         <div className="space-y-3">
           {mediaFiles.map(({ url, file }, index) => (
-            <div key={index} className="flex items-center gap-2 p-3 border border-secondary rounded-lg">
+            <div key={index} className="flex items-center gap-2 p-3 border border-[hsl(73,17%,74%)] rounded-lg">
               {file.type.startsWith('video/') ? (
                 <video 
                   src={url} 
@@ -217,7 +219,7 @@ const MediaUploader : React.FC<MediaUploaderProps> = ({ setVoiceId }) => {
         onClick={handleUpload}
         disabled={mediaFiles.length < 1 || totalDuration < MINIMUM_TOTAL_DURATION || isUploading}
         type="button"
-        className="w-full flex items-center justify-center gap-2 px-4 py-2 border-secondary border hover:enabled:bg-primary hover:active:enabled:bg-secondary text-text rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="w-full flex items-center justify-center gap-2 px-4 py-2 border-[hsl(73,17%,74%)] border hover:enabled:bg-[hsl(33,70%,63%)] hover:active:enabled:bg-[hsl(73,17%,74%)] text-[hsl(240,36%,4%)] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {isUploading ? (
           <>
@@ -232,7 +234,7 @@ const MediaUploader : React.FC<MediaUploaderProps> = ({ setVoiceId }) => {
         )}
       </button>
 
-      <div className="mt-4 text-sm text-gray-500 text-center">
+      <div className="mt-4 text-sm text-[hsl(240,36%,4%,0.7)] text-center">
         {mediaFiles.length}/2 files saved
       </div>
     </div>
