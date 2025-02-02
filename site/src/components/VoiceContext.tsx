@@ -2,28 +2,32 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 
 interface VoiceContextType {
-  currentVoice: string;
-  updateVoice: (voiceName: string) => void;
+  currentVoiceName: string;
+  currentVoiceId: string;
+  updateVoice: (voiceName: string, voiceId: string) => void;
 }
 
 const VoiceContext = createContext<VoiceContextType | undefined>(undefined);
 
 export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { data: session } = useSession();
-  const [currentVoice, setCurrentVoice] = useState<string>(session?.user?.voiceName || 'Sarah');
+  const [currentVoiceName, setCurrentVoiceName] = useState<string>(session?.user?.voiceName || 'Sarah');
+  const [currentVoiceId, setCurrentVoiceId] = useState<string>(session?.user?.voiceId || 'default');
 
   useEffect(() => {
-    if (session?.user?.voiceName) {
-      setCurrentVoice(session.user.voiceName);
+    if (session?.user?.voiceName && session?.user?.voiceId) {
+      setCurrentVoiceName(session.user.voiceName);
+      setCurrentVoiceId(session.user.voiceId);
     }
-  }, [session?.user?.voiceName]);
+  }, [session?.user?.voiceName, session?.user?.voiceId]);
 
-  const updateVoice = (voiceName: string) => {
-    setCurrentVoice(voiceName);
+  const updateVoice = (voiceName: string, voiceId: string) => {
+    setCurrentVoiceName(voiceName);
+    setCurrentVoiceId(voiceId);
   };
 
   return (
-    <VoiceContext.Provider value={{ currentVoice, updateVoice }}>
+    <VoiceContext.Provider value={{ currentVoiceName, currentVoiceId, updateVoice }}>
       {children}
     </VoiceContext.Provider>
   );

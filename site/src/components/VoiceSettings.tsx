@@ -187,17 +187,24 @@ const VoiceSettings: React.FC = () => {
         }
   
         setSelectedVoice(voice);
-        updateVoice(voice.name); // Update the shared voice context
+        updateVoice(voice.name, voice.id); // Update both name and ID in the context
       } catch (error) {
         console.error('Error saving voice settings:', error);
         setError('Failed to save voice settings');
       }
     };
 
-   const handleCustomVoiceUploadSuccess = async (voiceId: string) => {
+    const handleCustomVoiceUploadSuccess = async (voiceId: string) => {
       setCustomVoiceId(voiceId);
+      const customVoice: Voice = {
+        id: voiceId,
+        name: `Custom Voice (${voiceId.slice(0, 6)}...)`, // Create a readable name with truncated ID
+        gender: 'unknown' as 'male' | 'female',
+        preview_url: ''
+      };
+      await handleVoiceSelect(customVoice);
       setShowRecorder(false);
-   };
+    };
 
    const handleRemoveCustomVoice = async () => {
       try {
@@ -245,32 +252,32 @@ const VoiceSettings: React.FC = () => {
 
    const CurrentVoiceDisplay: React.FC = () => (
       <div
-         onClick={() => setIsModalOpen(true)}
-         className="bg-[hsl(240,60%,99%)] rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
+        onClick={() => setIsModalOpen(true)}
+        className="bg-[hsl(240,60%,99%)] rounded-lg shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
       >
-         <div className="p-6 border-2 border-transparent hover:border-[hsl(33,70%,63%)] rounded-lg transition-colors">
-            <div className="flex items-center gap-4">
-               <div className="p-3 bg-[hsl(33,70%,63%,0.1)] rounded-full">
-                  <Mic className="h-6 w-6 text-[hsl(33,70%,63%)]" />
-               </div>
-               <div>
-                  <h3 className="text-lg font-medium text-[hsl(240,36%,4%)]">Voice Model</h3>
-                  <p className="text-[hsl(240,36%,4%,0.7)]">
-                     {isLoading ? (
-                        <span className="inline-block animate-pulse">Loading voice settings...</span>
-                     ) : selectedVoice ? (
-                        <>Currently using: <span className="font-bold italic text-black">{selectedVoice.name}</span></>
-                     ) : (
-                        <span className="text-[hsl(33,70%,63%)]">Please select a voice model</span>
-                     )}
-                  </p>
-               </div>
+        <div className="p-6 border-2 border-transparent hover:border-[hsl(33,70%,63%)] rounded-lg transition-colors">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-[hsl(33,70%,63%,0.1)] rounded-full">
+              <Mic className="h-6 w-6 text-[hsl(33,70%,63%)]" />
             </div>
-            <div className="mt-4 flex items-center text-sm text-[hsl(33,45%,49%)] group">
-               <span>Customize voice settings</span>
-               <ChevronRight className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" />
+            <div>
+              <h3 className="text-lg font-medium text-[hsl(240,36%,4%)]">Voice Model</h3>
+              <p className="text-[hsl(240,36%,4%,0.7)]">
+                {isLoading ? (
+                  <span className="inline-block animate-pulse">Loading voice settings...</span>
+                ) : selectedVoice ? (
+                  <>Currently using: <span className="font-bold italic text-black">{selectedVoice.name}</span></>
+                ) : (
+                  <span className="text-[hsl(33,70%,63%)]">Please select a voice model</span>
+                )}
+              </p>
             </div>
-         </div>
+          </div>
+          <div className="mt-4 flex items-center text-sm text-[hsl(33,45%,49%)] group">
+            <span>Customize voice settings</span>
+            <ChevronRight className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform" />
+          </div>
+        </div>
       </div>
    );
 

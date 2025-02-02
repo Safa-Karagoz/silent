@@ -10,7 +10,7 @@ const StreamTest = () => {
   const lastProcessedTextRef = useRef<string | null>(null);
   const lastUsedVoiceRef = useRef<string | null>(null);
 
-  const { currentVoice } = useVoice();
+  const { currentVoiceName, currentVoiceId } = useVoice();
   const { data: session } = useSession();
 
   const processQueue = useCallback(async () => {
@@ -27,10 +27,10 @@ const StreamTest = () => {
       });
 
       // If voice has changed, don't use previous text for better transition
-      const shouldUsePreviousText = lastUsedVoiceRef.current === currentVoice;
+      const shouldUsePreviousText = lastUsedVoiceRef.current === currentVoiceId;
       
       const audioStream = await client.generate({
-        voice: currentVoice,
+        voice: currentVoiceId, // Use the voice ID for API calls
         model_id: 'eleven_flash_v2_5',
         text: currentText,
         previous_text: shouldUsePreviousText ? (lastProcessedTextRef.current ?? undefined) : undefined
@@ -64,7 +64,7 @@ const StreamTest = () => {
 
       // Update refs for next generation
       lastProcessedTextRef.current = currentText;
-      lastUsedVoiceRef.current = currentVoice;
+      lastUsedVoiceRef.current = currentVoiceId;
       
       // Remove the processed text from queue
       setTextQueue(prev => prev.slice(1));
@@ -75,7 +75,7 @@ const StreamTest = () => {
       setIsProcessing(false);
       setCurrentlyPlaying(null);
     }
-  }, [isProcessing, textQueue, currentVoice]);
+  }, [isProcessing, textQueue, currentVoiceId]);
 
   // Process queue whenever it changes or finishes processing
   React.useEffect(() => {
@@ -111,7 +111,8 @@ const StreamTest = () => {
       {/* Status Display */}
       <div className="text-sm text-gray-600 mt-4">
         <div>
-          <p>Current Voice: <span className="font-medium">{currentVoice}</span></p>
+          <p>Current Voice: <span className="font-medium">{currentVoiceName}</span></p>
+          <p>Voice ID: <span className="font-medium">{currentVoiceId}</span></p>
           
           {lastProcessedTextRef.current && (
             <div className="mb-2 mt-4">
