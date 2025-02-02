@@ -1,6 +1,6 @@
 // components/VideoFeed.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, RefreshCw, Video } from 'lucide-react';
+import { RefreshCw, Video } from 'lucide-react';
 
 interface MediaStreamError {
   name: string;
@@ -9,37 +9,51 @@ interface MediaStreamError {
 
 const VideoFeed: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isCapturing, setIsCapturing] = useState(false);
-  const captureIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingSessionId = useRef<string>('');
+  const timerId = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     startCamera();
     return () => {
-      if (captureIntervalRef.current) {
-        clearInterval(captureIntervalRef.current);
-      }
-      // Cleanup video stream
-      if (videoRef.current?.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
-      }
+      stopAndCleanup();
     };
   }, []);
+
+  const stopAndCleanup = () => {
+    if (timerId.current) {
+      clearInterval(timerId.current);
+      timerId.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+  };
 
   const startCamera = async () => {
     try {
       setIsLoading(true);
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
         audio: false
       });
+      
+      streamRef.current = stream;
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
+
       setError('');
     } catch (err) {
       const error = err as MediaStreamError;
@@ -49,55 +63,79 @@ const VideoFeed: React.FC = () => {
     }
   };
 
-  const captureFrame = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
-    
-    if (!context) return;
-    
-    // Set canvas dimensions to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    
-    // Draw the current video frame
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    try {
-      // Convert canvas to blob
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error('Failed to create blob'));
-        }, 'image/jpeg');
-      });
-      
-      const formData = new FormData();
-      formData.append('video', blob, 'capture.jpg');
-      
-      const response = await fetch('/api/capture-video', {
-        method: 'POST',
-        body: formData,
-      });
+  const startNewRecording = () => {
+    if (!streamRef.current) return;
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-    } catch (err) {
-      console.error('Error sending capture:', err);
+    // Stop any existing recording
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
     }
+
+    // Create a new MediaRecorder instance
+    const recorder = new MediaRecorder(streamRef.current, {
+      mimeType: 'video/webm'
+    });
+
+    const chunks: Blob[] = [];
+
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        chunks.push(event.data);
+      }
+    };
+
+    recorder.onstop = async () => {
+      if (chunks.length === 0) return;
+
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const formData = new FormData();
+      formData.append('video', blob, `chunk_${Date.now()}.webm`);
+      formData.append('sessionId', recordingSessionId.current);
+
+      try {
+        const response = await fetch('/api/capture-video', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        console.log('Successfully sent chunk of size:', blob.size);
+      } catch (err) {
+        console.error('Error sending video chunk:', err);
+      }
+    };
+
+    mediaRecorderRef.current = recorder;
+    recorder.start();
+
+    // Stop recording after 3 seconds
+    setTimeout(() => {
+      if (recorder.state !== 'inactive') {
+        recorder.stop();
+      }
+    }, 3000);
   };
 
   const toggleCapture = () => {
     if (isCapturing) {
-      if (captureIntervalRef.current) {
-        clearInterval(captureIntervalRef.current);
-        captureIntervalRef.current = null;
+      // Stop capturing
+      if (timerId.current) {
+        clearInterval(timerId.current);
+        timerId.current = null;
       }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+      recordingSessionId.current = '';
     } else {
-      captureIntervalRef.current = setInterval(captureFrame, 3000);
+      // Start capturing
+      recordingSessionId.current = `session_${Date.now()}`;
+      startNewRecording();
+      // Start a new recording every 3 seconds
+      timerId.current = setInterval(startNewRecording, 3000);
     }
     setIsCapturing(!isCapturing);
   };
@@ -122,15 +160,12 @@ const VideoFeed: React.FC = () => {
             </button>
           </div>
         ) : (
-          <>
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover rounded-lg transform scale-x-[-1]"
-            />
-            <canvas ref={canvasRef} className="hidden" />
-          </>
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            className="w-full h-full object-cover rounded-lg transform scale-x-[-1]"
+          />
         )}
       </div>
       
@@ -145,7 +180,7 @@ const VideoFeed: React.FC = () => {
           disabled={!!error || isLoading}
         >
           <Video className="w-5 h-5" />
-          {isCapturing ? 'Stop Capturing' : 'Start Capturing'}
+          {isCapturing ? 'Stop Recording' : 'Start Recording'}
         </button>
       </div>
     </div>
