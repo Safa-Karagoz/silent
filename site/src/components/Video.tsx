@@ -1,10 +1,14 @@
-// components/VideoFeed.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { useVoice } from './VoiceContext';
 
 interface MediaStreamError {
   name: string;
   message: string;
+}
+
+interface TranscriptionResponse {
+  transcription: string;
 }
 
 const VideoFeed: React.FC = () => {
@@ -15,6 +19,7 @@ const VideoFeed: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isCapturing, setIsCapturing] = useState(false);
   const timerId = useRef<NodeJS.Timeout | null>(null);
+  const { addTranscription } = useVoice();
 
   useEffect(() => {
     startCamera();
@@ -36,7 +41,6 @@ const VideoFeed: React.FC = () => {
     }
   };
 
-  // In VideoFeed.tsx
   const startCamera = async () => {
     try {
       setIsLoading(true);
@@ -47,12 +51,6 @@ const VideoFeed: React.FC = () => {
           frameRate: { exact: 30 }
         }
       });
-
-      // Create a new MediaRecorder with both audio and video
-      const options = {
-        mimeType: 'video/webm;codecs=vp8,opus',  // Explicitly specify codecs
-        videoBitsPerSecond: 2500000
-      };
 
       streamRef.current = stream;
       if (videoRef.current) {
@@ -97,8 +95,10 @@ const VideoFeed: React.FC = () => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const result = await response.json();
-        console.log('Processing result:', result);
+        const result = await response.json() as TranscriptionResponse;
+        if (result.transcription && result.transcription.trim()) {
+          addTranscription(result.transcription);
+        }
       } catch (err) {
         console.error('Error processing video:', err);
         setError('Failed to process video');
@@ -158,17 +158,17 @@ const VideoFeed: React.FC = () => {
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
           <button
             onClick={toggleCapture}
-            className={`flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all duration-200 ${isCapturing
-                ? 'bg-primary scale-110 animate-pulse pulse'
-                : 'bg-white/90'
-              }`}
+            className={`flex items-center justify-center w-12 h-12 rounded-full shadow-lg transition-all duration-200 ${
+              isCapturing ? 'bg-primary scale-110 animate-pulse pulse' : 'bg-white/90'
+            }`}
             disabled={!!error || isLoading}
             title={isCapturing ? 'Stop Recording' : 'Start Recording'}
           >
-            <div className={`${isCapturing
-                ? 'w-4 h-4 rounded-sm bg-white'
-                : 'w-4 h-4 bg-primary rounded-full'
-              }`} />
+            <div
+              className={`${
+                isCapturing ? 'w-4 h-4 rounded-sm bg-white' : 'w-4 h-4 bg-primary rounded-full'
+              }`}
+            />
           </button>
         </div>
       </div>

@@ -5,21 +5,26 @@ import { useVoice } from './VoiceContext';
 
 const StreamTest = () => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [textQueue, setTextQueue] = useState<string[]>([]);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const lastProcessedTextRef = useRef<string | null>(null);
   const lastUsedVoiceRef = useRef<string | null>(null);
 
-  const { currentVoiceName, currentVoiceId } = useVoice();
+  const { 
+    currentVoiceName, 
+    currentVoiceId, 
+    transcriptionQueue,
+    clearProcessedTranscription 
+  } = useVoice();
+  
   const { data: session } = useSession();
 
-  const processQueue = useCallback(async () => {
-    if (isProcessing || textQueue.length === 0) return;
+  const processTranscription = useCallback(async () => {
+    if (isProcessing || transcriptionQueue.length === 0) return;
     
     setIsProcessing(true);
     
     try {
-      const currentText = textQueue[0];
+      const currentText = transcriptionQueue[0];
       setCurrentlyPlaying(currentText);
 
       const client = new ElevenLabsClient({
@@ -30,7 +35,7 @@ const StreamTest = () => {
       const shouldUsePreviousText = lastUsedVoiceRef.current === currentVoiceId;
       
       const audioStream = await client.generate({
-        voice: currentVoiceId, // Use the voice ID for API calls
+        voice: currentVoiceId,
         model_id: 'eleven_flash_v2_5',
         text: currentText,
         previous_text: shouldUsePreviousText ? (lastProcessedTextRef.current ?? undefined) : undefined
@@ -66,8 +71,8 @@ const StreamTest = () => {
       lastProcessedTextRef.current = currentText;
       lastUsedVoiceRef.current = currentVoiceId;
       
-      // Remove the processed text from queue
-      setTextQueue(prev => prev.slice(1));
+      // Remove the processed transcription
+      clearProcessedTranscription();
       
     } catch (error) {
       console.error('Error processing text stream:', error);
@@ -75,39 +80,15 @@ const StreamTest = () => {
       setIsProcessing(false);
       setCurrentlyPlaying(null);
     }
-  }, [isProcessing, textQueue, currentVoiceId]);
+  }, [isProcessing, transcriptionQueue, currentVoiceId, clearProcessedTranscription]);
 
   // Process queue whenever it changes or finishes processing
   React.useEffect(() => {
-    processQueue();
-  }, [textQueue, isProcessing, processQueue]);
-
-  // Test texts that would naturally flow together
-  const testTexts = [
-    "Hi! How are you",
-    "doing today? Do you have anything planned for the evening?"
-  ];
+    processTranscription();
+  }, [transcriptionQueue, isProcessing, processTranscription]);
 
   return (
     <div className="flex flex-col items-center gap-6 p-6">
-      <div className="flex gap-4">
-        <button
-          onClick={() => setTextQueue(prev => [...prev, testTexts[0]])}
-          className="px-6 py-3 rounded-lg font-medium transition-colors
-            bg-blue-500 hover:bg-blue-600 text-white"
-        >
-          Send First Part
-        </button>
-
-        <button
-          onClick={() => setTextQueue(prev => [...prev, testTexts[1]])}
-          className="px-6 py-3 rounded-lg font-medium transition-colors
-            bg-green-500 hover:bg-green-600 text-white"
-        >
-          Send Second Part
-        </button>
-      </div>
-
       {/* Status Display */}
       <div className="text-sm text-gray-600 mt-4">
         <div>
@@ -126,10 +107,10 @@ const StreamTest = () => {
               <p className="font-medium mt-1">{currentlyPlaying}</p>
             </div>
           )}
-          {textQueue.length > 0 && (
+          {transcriptionQueue.length > 0 && (
             <div className="mt-2">
               <p>In queue:</p>
-              {textQueue.map((text, index) => (
+              {transcriptionQueue.map((text, index) => (
                 <p key={index} className="text-xs mt-1 opacity-75">• {text}</p>
               ))}
             </div>

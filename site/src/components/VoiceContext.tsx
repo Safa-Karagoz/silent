@@ -4,7 +4,10 @@ import { useSession } from 'next-auth/react';
 interface VoiceContextType {
   currentVoiceName: string;
   currentVoiceId: string;
+  transcriptionQueue: string[];
   updateVoice: (voiceName: string, voiceId: string) => void;
+  addTranscription: (text: string) => void;
+  clearProcessedTranscription: () => void;
 }
 
 const VoiceContext = createContext<VoiceContextType | undefined>(undefined);
@@ -13,6 +16,7 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { data: session } = useSession();
   const [currentVoiceName, setCurrentVoiceName] = useState<string>(session?.user?.voiceName || 'Sarah');
   const [currentVoiceId, setCurrentVoiceId] = useState<string>(session?.user?.voiceId || 'default');
+  const [transcriptionQueue, setTranscriptionQueue] = useState<string[]>([]);
 
   useEffect(() => {
     if (session?.user?.voiceName && session?.user?.voiceId) {
@@ -26,8 +30,23 @@ export const VoiceProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentVoiceId(voiceId);
   };
 
+  const addTranscription = (text: string) => {
+    setTranscriptionQueue(prev => [...prev, text]);
+  };
+
+  const clearProcessedTranscription = () => {
+    setTranscriptionQueue(prev => prev.slice(1));
+  };
+
   return (
-    <VoiceContext.Provider value={{ currentVoiceName, currentVoiceId, updateVoice }}>
+    <VoiceContext.Provider value={{ 
+      currentVoiceName, 
+      currentVoiceId, 
+      transcriptionQueue,
+      updateVoice,
+      addTranscription,
+      clearProcessedTranscription
+    }}>
       {children}
     </VoiceContext.Provider>
   );
