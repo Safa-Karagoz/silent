@@ -7,6 +7,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "./api/auth/[...nextauth]";
 
 const AnimatedWaveform = () => {
+  
+  useEffect(() => {
+    document.title = "echo.";
+  }, []);
+
   const createWavePath = (phase: number, amplitude: number) => {
     const points = [];
     for (let i = 0; i <= 100; i++) {
@@ -14,14 +19,17 @@ const AnimatedWaveform = () => {
       const y = amplitude * Math.sin((i / 100) * Math.PI * 6 + phase);
       points.push(`${x},${y}`);
     }
-    return points
-      .map((point, index) => (index === 0 ? `M ${point}` : `L ${point}`))
-      .join(" ");
+    return points.map((point, index) =>
+      index === 0 ? `M ${point}` : `L ${point}`
+    ).join(' ');
   };
 
   return (
-    <svg viewBox="-400 -125 2000 250" className="w-full h-full">
-      {[0, Math.PI / 3, (Math.PI * 2) / 3].map((startPhase, index) => (
+    <svg
+      viewBox="-400 -125 2000 250"
+      className="w-full h-full"
+    >
+      {[0, Math.PI / 3, Math.PI * 2 / 3].map((startPhase, index) => (
         <g key={index}>
           <motion.path
             d={createWavePath(startPhase, 100)}
@@ -120,7 +128,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-around">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Content centered in page */}
       <div className="max-w-7xl mx-auto mt-8 pt-16">
         <div className="max-w-3xl mx-auto text-center space-y-8">
@@ -151,7 +159,8 @@ export default function LandingPage() {
                 </AnimatePresence>
               </h2>
             </div>
-            <p className="text-2xl text-text/80 mb-8 mx-auto max-w-2xl">
+
+            <p className="text-xl text-text/80 mb-8 mx-auto max-w-2xl">
               Restore your voice through AI-powered lip synchronization.
               Participate fully in conversations, meetings, and life.
             </p>
