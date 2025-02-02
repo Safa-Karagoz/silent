@@ -10,6 +10,7 @@ import VideoFeed from "../components/Video";
 import AudioPlayer from "../components/AudioPlayer";
 
 import StreamTest from "@/components/StreamTest";
+import TranscriptView from "@/components/Transcript";
 
 interface AudioMessage {
   id: string;
@@ -117,16 +118,16 @@ const Dashboard = () => {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
               >
-                <StreamTest />
-                <div className="p-6 space-y-4">
-                  {messages.map((message) => (
+                {/* <StreamTest /> */}
+                  {/* {messages.map((message) => (
                     <AudioPlayer
                       key={message.id}
                       streamUrl={`/api/tts?text=${encodeURIComponent(message.text)}`}
                       text={message.text}
                     />
-                  ))}
-                </div>
+                  ))} */}
+                  <TranscriptView />
+
               </motion.div>
             </div>
 
