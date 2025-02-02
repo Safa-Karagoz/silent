@@ -1,48 +1,105 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, AudioWaveform, MessageSquare, Users } from 'lucide-react';
+import { Mic, MessageSquare, Users } from 'lucide-react';
 import { signIn } from 'next-auth/react';
 import { GetServerSidePropsContext } from 'next';
 import { getServerSession } from 'next-auth';
 import { authOptions } from './api/auth/[...nextauth]';
 
-const WaveAnimation: React.FC = () => {
+const AnimatedWaveform = () => {
+  // Create multiple wave paths with different phases
+  const createWavePath = (phase: number, amplitude: number) => {
+    const points = [];
+    for (let i = 0; i <= 100; i++) {
+      const x = i * (800 / 100);
+      const y = amplitude * Math.sin((i / 100) * Math.PI * 4 + phase);
+      points.push(`${x},${y}`);
+    }
+    // Start with M (move to) for the first point, then L (line to) for subsequent points
+    return points.map((point, index) => 
+      index === 0 ? `M ${point}` : `L ${point}`
+    ).join(' ');
+  };
+
   return (
-    <div className="flex items-center gap-1 h-12">
-      {[...Array(5)].map((_, i) => (
-        <motion.div
-          key={i}
-          className="w-1 bg-primary rounded-full"
-          animate={{
-            height: ["16px", "32px", "16px"],
-          }}
-          transition={{
-            duration: 1,
-            repeat: Infinity,
-            delay: i * 0.1,
-          }}
-        />
+    <svg
+      viewBox="-50 -125 900 250"
+      className="w-full h-full"
+    >
+      {/* Create multiple waves with different animations */}
+      {[0, Math.PI / 3, Math.PI * 2/3].map((startPhase, index) => (
+        <g key={index}>
+          <motion.path
+            d={createWavePath(startPhase, 100)}
+            fill="none"
+            stroke="hsl(33, 70%, 63%)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ 
+              pathLength: [0, 1, 0], 
+              opacity: [0.3, 0.7, 0.3],
+              y: [0, 10, 0]
+            }}
+            transition={{
+              pathLength: {
+                duration: 4,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: index * 0.2
+              },
+              opacity: {
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: index * 0.2
+              },
+              y: {
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: index * 0.2
+              }
+            }}
+          />
+          <motion.path
+            d={createWavePath(startPhase + Math.PI, 80)}
+            fill="none"
+            stroke="hsl(135, 17%, 63%)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ 
+              pathLength: [0, 1, 0], 
+              opacity: [0.3, 0.6, 0.3],
+              y: [0, -10, 0]
+            }}
+            transition={{
+              pathLength: {
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: index * 0.3
+              },
+              opacity: {
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: index * 0.3
+              },
+              y: {
+                duration: 3,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: index * 0.3
+              }
+            }}
+          />
+        </g>
       ))}
-    </div>
+    </svg>
   );
 };
-
-const FeatureCard: React.FC<{ icon: React.ReactNode; title: string; description: string }> = ({
-  icon,
-  title,
-  description,
-}) => (
-  <motion.div
-    whileHover={{ scale: 1.02 }}
-    className="p-6 rounded-xl bg-background border border-secondary hover:border-primary transition-colors"
-  >
-    <div className="flex items-center gap-3 mb-4">
-      <div className="text-primary">{icon}</div>
-      <h3 className="text-xl font-semibold text-text">{title}</h3>
-    </div>
-    <p className="text-text/80">{description}</p>
-  </motion.div>
-);
 
 export default function LandingPage() {
   const [displayText, setDisplayText] = useState("Speak");
@@ -58,7 +115,7 @@ export default function LandingPage() {
         currentIndex = (currentIndex + 1) % words.length;
         setDisplayText(words[currentIndex]);
         setIsChanging(false);
-      }, 200); // Half of the fade duration
+      }, 200);
     }, 2000);
     
     return () => clearInterval(interval);
@@ -70,7 +127,6 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
       <div className="max-w-7xl mx-auto px-4 py-20">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <motion.div
@@ -81,7 +137,7 @@ export default function LandingPage() {
           >
             <div className="space-y-4">
               <h1 className="text-6xl sm:text-7xl font-bold text-text">
-                <span className="text-primary">echo<span className='text-accent'>.</span></span>
+                <span className="text-primary">echo<span className="text-accent">.</span></span>
               </h1>
               <div className="flex items-center gap-4">
                 <h2 className="text-4xl font-semibold text-text flex items-center">
@@ -99,7 +155,6 @@ export default function LandingPage() {
                     </motion.span>
                   </AnimatePresence>
                 </h2>
-                {/* <WaveAnimation /> */}
               </div>
               <p className="text-xl text-text/80 max-w-xl">
                 Restore your voice through AI-powered lip synchronization. 
@@ -126,33 +181,20 @@ export default function LandingPage() {
             </div>
           </motion.div>
 
+          {/* New animated waveform */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8 }}
-            className="relative"
+            className="relative h-full w-full min-h-[600px] flex items-center justify-center"
           >
-            <div className="aspect-square rounded-full bg-gradient-to-br from-primary/20 via-accent/20 to-secondary/20 flex items-center justify-center">
-              <div className="w-4/5 h-4/5 rounded-full bg-gradient-to-tr from-primary/30 via-accent/30 to-secondary/30 flex items-center justify-center relative overflow-hidden group">
-                <motion.div
-                  animate={{
-                    scale: [1, 1.1, 1],
-                    rotate: [0, 5, -5, 0],
-                  }}
-                  transition={{
-                    duration: 4,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                >
-                  <AudioWaveform className="w-1/2 h-1/2 text-primary transform -rotate-12" />
-                </motion.div>
-              </div>
+            <div className="w-full h-full">
+              <AnimatedWaveform />
             </div>
           </motion.div>
         </div>
       </div>
-  </div>
+    </div>
   );
 }
 
