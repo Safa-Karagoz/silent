@@ -1,101 +1,60 @@
-import os
-import queue
 import threading
-import tempfile
+import queue
 import torch
-import hydra
-from flask import Flask, request, jsonify
-from pipelines.pipeline import InferencePipeline
+import os
+import tempfile
 
-# Global Flask app instance and task queue.
-app = Flask(__name__)
+import hydra
+from pipelines.pipeline import InferencePipeline
+from flask import Flask, request, jsonify
+
+# Create a global task queue.
 task_queue = queue.Queue()
 
-# This global will hold the Hydra configuration so that the Flask route can access it.
-global_config = None
+# Define the worker function.
+def worker(worker_id, cfg):
+    # Each thread creates its own pipeline instance.
+    pipeline = InferencePipeline(cfg.config_filename, device=(
+        torch.device(f"cuda:{cfg.gpu_idx}") if torch.cuda.is_available() and cfg.gpu_idx >= 0 else torch.device("cpu")
+    ), detector=cfg.detector, face_track=True)
 
-def worker(worker_id, cfg, device):
-    """
-    Worker function that creates its own InferencePipeline instance and 
-    continuously processes tasks from the global task_queue.
-    Each task is a tuple: (audio_file_path, landmarks_filename, result_queue).
-    """
-    pipeline = InferencePipeline(cfg.config_filename, device=device, detector=cfg.detector, face_track=True)
     if not callable(pipeline):
         print(f"Worker {worker_id}: The InferencePipeline instance is not callable. Please verify that it implements __call__ or use the correct method.")
         return
 
     while True:
-        # Retrieve a task from the queue. (This call blocks until a task is available.)
+        # Get a task from the queue (blocking).
         task = task_queue.get()
-        if task is None:
-            # A 'None' task is our shutdown signal.
-            task_queue.task_done()
-            break
-
-        audio_file, landmarks_filename, result_queue = task
+        # A task is expected to be a dict with at least the "file" key.
+        audio_file = task.get("file")
         print(f"Worker {worker_id} processing audio file: {audio_file}")
-
         try:
-            transcription = pipeline(audio_file, landmarks_filename)
-            result_queue.put({'status': 'success', 'transcription': transcription})
+            # Process the file (optionally with a landmarks file).
+            transcription = pipeline(audio_file, cfg.landmarks_filename)
+            # If the task was submitted via the Flask API, return the result via its result_queue.
+            if "result_queue" in task:
+                task["result_queue"].put(transcription)
+            else:
+                print(f"Worker {worker_id} transcription for {audio_file}: {transcription}")
         except Exception as e:
-            result_queue.put({'status': 'error', 'error': str(e)})
+            error_msg = f"Worker {worker_id} error processing {audio_file}: {e}"
+            if "result_queue" in task:
+                task["result_queue"].put(error_msg)
+            else:
+                print(error_msg)
         finally:
             task_queue.task_done()
 
-@app.route('/process', methods=['POST'])
-def process():
-    """
-    Flask route that accepts a POST with an MP4 file.
-    The file is saved in a temporary folder, a task is enqueued for a worker, and the result is returned.
-    The temporary file is deleted after processing.
-    """
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part in the request'}), 400
-
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-
-    try:
-        # Create a temporary file in the system temporary directory.
-        # Using NamedTemporaryFile with delete=False so we can pass its name to the worker.
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
-            file.save(temp_file)
-            temp_path = temp_file.name
-    except Exception as e:
-        return jsonify({'error': f'Error saving temporary file: {str(e)}'}), 500
-
-    # Create a per-request result queue.
-    result_queue = queue.Queue()
-    # Enqueue the task for processing.
-    task_queue.put((temp_path, global_config.landmarks_filename, result_queue))
-
-    # Wait (block) for the result from the worker.
-    result = result_queue.get()
-
-    # Delete the temporary file.
-    try:
-        os.remove(temp_path)
-    except Exception as e:
-        print(f"Warning: Could not delete temporary file {temp_path}. Error: {e}")
-
-    if result.get('status') == 'success':
-        return jsonify({'transcription': result.get('transcription')})
-    else:
-        return jsonify({'error': result.get('error')}), 500
-
 @hydra.main(version_base=None, config_path="hydra_configs", config_name="default")
 def main(cfg):
-    """
-    Hydra main function.
-    Sets up the device, starts four worker threads, and launches the Flask web server.
-    """
-    global global_config
-    global_config = cfg  # Make the config available to the Flask route.
+    # For testing purposes, we use a fixed list of files.
+    # (Adjust the list as needed. Note: these are still MP4 files; if you intend to run audio inference,
+    #  make sure your pipeline supports audio inputs.)
+    audio_files = []
+    if not audio_files:
+        print("No static audio files provided in configuration.")
 
-    # Determine the inference device.
+    # Inform which device will be used.
     device = torch.device(f"cuda:{cfg.gpu_idx}" if torch.cuda.is_available() and cfg.gpu_idx >= 0 else "cpu")
     print(f"Running inference on device: {device}")
 
@@ -103,19 +62,67 @@ def main(cfg):
     num_workers = 4
     threads = []
     for i in range(num_workers):
-        t = threading.Thread(target=worker, args=(i+1, cfg, device), daemon=True)
+        t = threading.Thread(target=worker, args=(i+1, cfg), daemon=True)
         t.start()
         threads.append(t)
 
-    # Launch the Flask app. Adjust host/port as needed.
-    # The 'threaded=True' option allows Flask to handle each request in a separate thread.
-    app.run(host="0.0.0.0", port=5001, threaded=True)
+    # Enqueue static audio files for testing.
+    for audio_file in audio_files:
+        # Each task is a dict with at least a "file" key.
+        task_queue.put({"file": audio_file})
+    
+    # Optionally, wait until the static tasks are processed before starting the API.
+    # (If you want the API to be available immediately, you can remove or modify this join.)
+    if audio_files:
+        print("Processing static audio files...")
+        task_queue.join()
+        print("Static audio file processing complete.")
 
-    # (Optional) When the Flask app stops, send a shutdown signal to worker threads.
-    for _ in range(num_workers):
-        task_queue.put(None)
-    for t in threads:
-        t.join()
+    # Create the Flask application.
+    app = Flask(__name__)
+
+    @app.route("/process", methods=["POST"])
+    def process():
+        """
+        Expects a POST request with a file part (key "file") containing an .mp4 file.
+        Saves the file to a temporary location, enqueues the task to the worker pool,
+        and waits for the transcription result to return to the client.
+        """
+        if "file" not in request.files:
+            return "No file part in the request.", 400
+        file = request.files["file"]
+        if file.filename == "":
+            return "No file selected.", 400
+        if not file.filename.lower().endswith(".mp4"):
+            return "Only .mp4 files are allowed.", 400
+
+        # Save the uploaded file to a temporary directory.
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, file.filename)
+        file.save(temp_path)
+        print(f"Received file {file.filename} and saved to {temp_path}")
+
+        # Create a dedicated queue for retrieving the result from the worker.
+        result_queue = queue.Queue()
+
+        # Enqueue the task with the temporary file path and the result queue.
+        task_queue.put({"file": temp_path, "result_queue": result_queue})
+
+        try:
+            # Wait for the result (with a timeout, e.g., 120 seconds).
+            transcription = result_queue.get(timeout=120)
+        except queue.Empty:
+            transcription = "Error: Processing timed out."
+        finally:
+            # Clean up the temporary file.
+            try:
+                os.remove(temp_path)
+            except Exception as e:
+                print(f"Error removing temporary file {temp_path}: {e}")
+        return jsonify({"transcription": transcription})
+
+    # Run the Flask app.
+    app.run(host="0.0.0.0", port=5001)
 
 if __name__ == "__main__":
     main()
