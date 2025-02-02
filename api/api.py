@@ -132,7 +132,12 @@ def process():
         # Step 7: Process through inference pipeline
         print("Starting inference pipeline")
         result_queue = queue.Queue()
-        task_queue.put({"file": audio_temp_path, "result_queue": result_queue})
+        # Pass the original video file path for video processing, not the audio path
+        task_queue.put({
+            "file": temp_path,  # Use original video file instead of audio_temp_path
+            "audio_file": audio_temp_path,  # Optionally pass audio file if needed
+            "result_queue": result_queue
+        })
         
         try:
             transcription = result_queue.get(timeout=120)
