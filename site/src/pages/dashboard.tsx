@@ -113,7 +113,7 @@ const Dashboard = () => {
               </motion.div>
 
               <motion.div
-                className="bg-white/80 rounded-2xl shadow-sm max-h-[calc(100vh-400px)] overflow-auto"
+                className="bg-white/80 rounded-2xl shadow-sm max-h-[calc(100vh-400px)] overflow-auto p-0"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
@@ -127,8 +127,9 @@ const Dashboard = () => {
                     />
                   ))} */}
                   <TranscriptView />
-                  <StreamTest />
               </motion.div>
+              <StreamTest />
+
             </div>
 
             <motion.div

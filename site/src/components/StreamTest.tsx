@@ -88,7 +88,7 @@ const StreamTest = () => {
   }, [transcriptionQueue, isProcessing, processTranscription]);
 
   return (
-    <div className="flex flex-col items-center gap-6 p-6">
+    <div className="flex flex-col items-center gap-2 p-1">
       {/* Status Display
       <div className="text-sm text-gray-600 mt-4">
         <div>
