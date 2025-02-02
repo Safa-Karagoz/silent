@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import type { GetServerSidePropsContext } from "next";
 import { useSession, signOut } from "next-auth/react";
 import { getServerSession } from "next-auth/next";
@@ -7,15 +7,53 @@ import { motion } from "framer-motion";
 import { LogOut } from "lucide-react";
 import VoiceSettings from "../components/VoiceSettings";
 import VideoFeed from "../components/Video";
-import TranscriptView from "../components/Transcript";
+import AudioPlayer from "../components/AudioPlayer";
+
+import StreamTest from "@/components/StreamTest";
+
+interface AudioMessage {
+  id: string;
+  text: string;
+  timestamp: number;
+}
 
 const Dashboard = () => {
   const { data: session } = useSession();
   const name = session?.user?.name;
+  const [messages, setMessages] = useState<AudioMessage[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     document.title = "Dashboard";
   }, []);
+
+  const handleIncomingText = useCallback(async (text: string) => {
+    if (isProcessing) return;
+    
+    setIsProcessing(true);
+    const messageId = Date.now().toString();
+    
+    // Add message to state immediately
+    setMessages(prev => [...prev, {
+      id: messageId,
+      text,
+      timestamp: Date.now()
+    }]);
+
+    try {
+      // Create audio stream URL
+      const streamUrl = `/api/tts?text=${encodeURIComponent(text)}`;
+      
+      // Create audio element and play
+      const audio = new Audio(streamUrl);
+      await audio.play();
+      
+    } catch (error) {
+      console.error('Error processing text:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [isProcessing]);
 
   const handleSignOut = () => {
     signOut({ callbackUrl: "/" });
@@ -32,7 +70,7 @@ const Dashboard = () => {
           transition={{ duration: 0.6 }}
           className="h-full max-w-6xl mx-auto"
         >
-          {/* Simplified Header */}
+          {/* Header */}
           <motion.div
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -79,7 +117,16 @@ const Dashboard = () => {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
               >
-                <TranscriptView />
+                <StreamTest />
+                <div className="p-6 space-y-4">
+                  {messages.map((message) => (
+                    <AudioPlayer
+                      key={message.id}
+                      streamUrl={`/api/tts?text=${encodeURIComponent(message.text)}`}
+                      text={message.text}
+                    />
+                  ))}
+                </div>
               </motion.div>
             </div>
 
