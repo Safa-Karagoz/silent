@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.7.4",
+    "@ffmpeg/core": "^0.12.10",
+    "@ffmpeg/ffmpeg": "^0.12.15",
     "@react-three/drei": "^9.121.4",
     "@react-three/fiber": "^8.17.14",
     "elevenlabs": "^1.50.4",

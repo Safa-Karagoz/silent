@@ -1,6 +1,6 @@
 // components/VideoFeed.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import { RefreshCw, Video } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 
 interface MediaStreamError {
   name: string;
@@ -14,7 +14,6 @@ const VideoFeed: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isCapturing, setIsCapturing] = useState(false);
-  const recordingSessionId = useRef<string>('');
   const timerId = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -37,23 +36,28 @@ const VideoFeed: React.FC = () => {
     }
   };
 
+  // In VideoFeed.tsx
   const startCamera = async () => {
     try {
       setIsLoading(true);
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
+          width: { exact: 640 },
+          height: { exact: 480 },
+          frameRate: { exact: 30 }
+        }
       });
 
-      streamRef.current = stream;
+      // Create a new MediaRecorder with both audio and video
+      const options = {
+        mimeType: 'video/webm;codecs=vp8,opus',  // Explicitly specify codecs
+        videoBitsPerSecond: 2500000
+      };
 
+      streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
-
       setError('');
     } catch (err) {
       const error = err as MediaStreamError;
@@ -65,53 +69,43 @@ const VideoFeed: React.FC = () => {
 
   const startNewRecording = () => {
     if (!streamRef.current) return;
-
-    // Stop any existing recording
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
-
-    // Create a new MediaRecorder instance
     const recorder = new MediaRecorder(streamRef.current, {
-      mimeType: 'video/webm'
+      mimeType: 'video/webm',
+      videoBitsPerSecond: 2500000
     });
-
     const chunks: Blob[] = [];
-
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         chunks.push(event.data);
       }
     };
-
     recorder.onstop = async () => {
       if (chunks.length === 0) return;
-
       const blob = new Blob(chunks, { type: 'video/webm' });
-      const formData = new FormData();
-      formData.append('video', blob, `chunk_${Date.now()}.webm`);
-      formData.append('sessionId', recordingSessionId.current);
-
       try {
-        const response = await fetch('/api/capture-video', {
+        const response = await fetch('http://localhost:5001/process', {
           method: 'POST',
-          body: formData
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'X-Filename': `recording_${Date.now()}.webm`
+          },
+          body: blob,
         });
-
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-
-        console.log('Successfully sent chunk of size:', blob.size);
+        const result = await response.json();
+        console.log('Processing result:', result);
       } catch (err) {
-        console.error('Error sending video chunk:', err);
+        console.error('Error processing video:', err);
+        setError('Failed to process video');
       }
     };
-
     mediaRecorderRef.current = recorder;
     recorder.start();
-
-    // Stop recording after 3 seconds
     setTimeout(() => {
       if (recorder.state !== 'inactive') {
         recorder.stop();
@@ -121,7 +115,6 @@ const VideoFeed: React.FC = () => {
 
   const toggleCapture = () => {
     if (isCapturing) {
-      // Stop capturing
       if (timerId.current) {
         clearInterval(timerId.current);
         timerId.current = null;
@@ -129,12 +122,8 @@ const VideoFeed: React.FC = () => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop();
       }
-      recordingSessionId.current = '';
     } else {
-      // Start capturing
-      recordingSessionId.current = `session_${Date.now()}`;
       startNewRecording();
-      // Start a new recording every 3 seconds
       timerId.current = setInterval(startNewRecording, 3000);
     }
     setIsCapturing(!isCapturing);
@@ -148,7 +137,6 @@ const VideoFeed: React.FC = () => {
             <RefreshCw className="w-8 h-8 text-orange-300 animate-spin" />
           </div>
         )}
-
         {error ? (
           <div className="absolute inset-0 flex items-center justify-center text-red-500 p-4 text-center">
             {error}
@@ -167,8 +155,6 @@ const VideoFeed: React.FC = () => {
             className="w-full h-full object-cover transform scale-x-[-1]"
           />
         )}
-
-        {/* Overlay recording control */}
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
           <button
             onClick={toggleCapture}
