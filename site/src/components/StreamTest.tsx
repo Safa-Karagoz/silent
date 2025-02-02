@@ -89,7 +89,7 @@ const StreamTest = () => {
 
   return (
     <div className="flex flex-col items-center gap-6 p-6">
-      {/* Status Display */}
+      {/* Status Display
       <div className="text-sm text-gray-600 mt-4">
         <div>
           <p>Current Voice: <span className="font-medium">{currentVoiceName}</span></p>
@@ -116,7 +116,7 @@ const StreamTest = () => {
             </div>
           )}
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };

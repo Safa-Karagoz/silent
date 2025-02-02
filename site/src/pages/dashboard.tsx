@@ -127,7 +127,7 @@ const Dashboard = () => {
                     />
                   ))} */}
                   <TranscriptView />
-
+                  <StreamTest />
               </motion.div>
             </div>
 
