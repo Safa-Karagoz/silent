@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Mic, Volume2, VolumeX, X, ChevronLeft, ChevronRight, Trash2, RefreshCw } from 'lucide-react';
 import MediaUploader from './MediaUploader';
+import { useVoice } from './VoiceContext';
 
 interface Voice {
    id: string;
@@ -97,6 +98,8 @@ const VoiceSettings: React.FC = () => {
    const [isLoading, setIsLoading] = useState<boolean>(true);
    const [error, setError] = useState<string>('');
 
+   const { updateVoice } = useVoice();
+
    const VOICES_PER_PAGE = 4;
 
    useEffect(() => {
@@ -170,25 +173,26 @@ const VoiceSettings: React.FC = () => {
 
    const handleVoiceSelect = async (voice: Voice) => {
       try {
-         const response = await fetch('/api/user/voice-settings', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-               voiceId: voice.id,
-               voiceName: voice.name
-            })
-         });
-
-         if (!response.ok) {
-            throw new Error('Failed to save voice settings');
-         }
-
-         setSelectedVoice(voice);
+        const response = await fetch('/api/user/voice-settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            voiceId: voice.id,
+            voiceName: voice.name
+          })
+        });
+  
+        if (!response.ok) {
+          throw new Error('Failed to save voice settings');
+        }
+  
+        setSelectedVoice(voice);
+        updateVoice(voice.name); // Update the shared voice context
       } catch (error) {
-         console.error('Error saving voice settings:', error);
-         setError('Failed to save voice settings');
+        console.error('Error saving voice settings:', error);
+        setError('Failed to save voice settings');
       }
-   };
+    };
 
    const handleCustomVoiceUploadSuccess = async (voiceId: string) => {
       setCustomVoiceId(voiceId);

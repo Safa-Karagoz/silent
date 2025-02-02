@@ -1,11 +1,17 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { ElevenLabsClient } from 'elevenlabs';
+import { useSession } from 'next-auth/react';
+import { useVoice } from './VoiceContext';
 
 const StreamTest = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [textQueue, setTextQueue] = useState<string[]>([]);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const lastProcessedTextRef = useRef<string | null>(null);
+  const lastUsedVoiceRef = useRef<string | null>(null);
+
+  const { currentVoice } = useVoice();
+  const { data: session } = useSession();
 
   const processQueue = useCallback(async () => {
     if (isProcessing || textQueue.length === 0) return;
@@ -20,12 +26,14 @@ const StreamTest = () => {
         apiKey: process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY
       });
 
-      // Include the previous_text parameter for better prosody
+      // If voice has changed, don't use previous text for better transition
+      const shouldUsePreviousText = lastUsedVoiceRef.current === currentVoice;
+      
       const audioStream = await client.generate({
-        voice: 'Rachel',
+        voice: currentVoice,
         model_id: 'eleven_flash_v2_5',
         text: currentText,
-        previous_text: lastProcessedTextRef.current || undefined
+        previous_text: shouldUsePreviousText ? (lastProcessedTextRef.current ?? undefined) : undefined
       });
 
       const chunks: Buffer[] = [];
@@ -54,8 +62,9 @@ const StreamTest = () => {
         audio.play();
       });
 
-      // Store the current text as the last processed text for the next generation
+      // Update refs for next generation
       lastProcessedTextRef.current = currentText;
+      lastUsedVoiceRef.current = currentVoice;
       
       // Remove the processed text from queue
       setTextQueue(prev => prev.slice(1));
@@ -66,7 +75,7 @@ const StreamTest = () => {
       setIsProcessing(false);
       setCurrentlyPlaying(null);
     }
-  }, [isProcessing, textQueue]);
+  }, [isProcessing, textQueue, currentVoice]);
 
   // Process queue whenever it changes or finishes processing
   React.useEffect(() => {
@@ -102,8 +111,10 @@ const StreamTest = () => {
       {/* Status Display */}
       <div className="text-sm text-gray-600 mt-4">
         <div>
+          <p>Current Voice: <span className="font-medium">{currentVoice}</span></p>
+          
           {lastProcessedTextRef.current && (
-            <div className="mb-2">
+            <div className="mb-2 mt-4">
               <p>Previous text:</p>
               <p className="text-xs mt-1 opacity-75">{lastProcessedTextRef.current}</p>
             </div>

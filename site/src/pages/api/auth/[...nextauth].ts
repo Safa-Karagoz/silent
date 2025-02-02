@@ -26,7 +26,9 @@ export const authOptions: AuthOptions = {
                 ...session,
                 user: {
                     ...session.user,
-                    id: user.id
+                    id: user.id,
+                    voiceId: (user as any).selectedVoiceId,
+                    voiceName: (user as any).selectedVoiceName,
                 }
             }
         }
